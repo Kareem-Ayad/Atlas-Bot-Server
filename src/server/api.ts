@@ -1,10 +1,11 @@
 import express, { Express } from "express";
 import { fetchRepositoryFiles, fetchUserRepositories, fetchRepositoryBranches, fetchRepositoryMetadata } from "./github";
-import { createTask, getTasks, getModels, getTaskLogs } from "./db";
-import { executePipeline } from "./agents";
+import { createTask, getTasks, getModels, getTaskLogs, getUserSession, updateUserSession } from "./db";
+import { taskQueue } from "./queue";
 
 export function setupRoutes(app: Express) {
   const router = express.Router();
+
 
   router.get("/health", (req, res) => {
     res.json({ status: "ok" });
@@ -12,7 +13,8 @@ export function setupRoutes(app: Express) {
 
   router.get("/models", async (req, res) => {
     try {
-      const models = await getModels();
+      const { getEnrichedModels } = await import("./modelRegistry");
+      const models = await getEnrichedModels();
       res.json(models);
     } catch(e: any) {
       res.status(500).json({ error: e.message || "Failed to fetch models" });
@@ -47,9 +49,8 @@ export function setupRoutes(app: Express) {
     try {
       const task = await createTask(title, description, repository, branch);
 
-      // Start asynchronous heavy pipeline processing
-      // We don't await this so the UI gets an immediate response.
-      executePipeline(task, modelId);
+      // Add task to async execution queue
+      await taskQueue.add({ taskId: task.id, modelId });
       
       res.json(task);
     } catch (e: any) {
@@ -84,6 +85,28 @@ export function setupRoutes(app: Express) {
       res.json(metadata);
     } catch (e: any) {
       res.status(500).json({ error: e.message || "Failed to fetch repository metadata" });
+    }
+  });
+
+  router.get("/github/session", async (req, res) => {
+    const { userId } = req.query;
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
+    try {
+      const session = await getUserSession(userId as string);
+      res.json(session || {});
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "Failed to fetch session" });
+    }
+  });
+
+  router.post("/github/session", async (req, res) => {
+    const { userId, selected_repo, selected_branch } = req.body;
+    if (!userId) return res.status(400).json({ error: "Missing userId" });
+    try {
+      const session = await updateUserSession(userId, { selected_repo, selected_branch });
+      res.json(session);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "Failed to update session" });
     }
   });
 

@@ -9,7 +9,7 @@ export const supabase = (supabaseUrl && supabaseKey)
   : null;
 
 // In-Memory Fallback structure
-export type TaskStatus = 'pending' | 'planning' | 'coding' | 'reviewing' | 'testing' | 'pending_approval' | 'completed' | 'failed';
+export type TaskStatus = 'pending' | 'queued' | 'running' | 'planning' | 'coding' | 'reviewing' | 'testing' | 'pending_approval' | 'completed' | 'failed' | 'cancelled';
 export type AgentRole = 'planner' | 'coder' | 'reviewer' | 'tester' | 'refactor';
 
 export interface Task {
@@ -20,6 +20,7 @@ export interface Task {
   model_used?: string;
   repository?: string;
   branch?: string;
+  chat_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export interface Model {
   category: string;
   cost_indicator: string;
   is_default: boolean;
+  is_available?: boolean;
 }
 
 const memoryDb = {
@@ -61,13 +63,14 @@ export async function getModels(): Promise<Model[]> {
   return memoryDb.models;
 }
 
-export async function createTask(title: string, description: string, repository?: string, branch?: string): Promise<Task> {
+export async function createTask(title: string, description: string, repository?: string, branch?: string, chat_id?: string): Promise<Task> {
   const newTask: Task = {
     id: uuidv4(),
     title,
     description,
     repository,
     branch,
+    chat_id,
     status: 'pending',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
@@ -104,6 +107,14 @@ export async function getTasks(): Promise<Task[]> {
   return [...memoryDb.tasks].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 }
 
+export async function getTask(id: string): Promise<Task | null> {
+  if (supabase) {
+    const { data, error } = await supabase.from('tasks').select('*').eq('id', id).single();
+    if (!error && data) return data;
+  }
+  return memoryDb.tasks.find(t => t.id === id) || null;
+}
+
 export async function addTaskLog(task_id: string, agent_role: AgentRole, model_used: string, content: string): Promise<TaskLog> {
   const log: TaskLog = {
     id: uuidv4(),
@@ -131,3 +142,44 @@ export async function getTaskLogs(task_id: string): Promise<TaskLog[]> {
   }
   return memoryDb.taskLogs.filter(l => l.task_id === task_id).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 }
+
+export interface UserSession {
+  user_id: string;
+  selected_repo?: string;
+  selected_branch?: string;
+}
+
+const memoryUserSessions: UserSession[] = [];
+
+export async function getUserSession(userId: string): Promise<UserSession | null> {
+  if (supabase) {
+    const { data, error } = await supabase.from('user_sessions').select('*').eq('user_id', userId).single();
+    if (!error && data) return data;
+  }
+  return memoryUserSessions.find(s => s.user_id === userId) || null;
+}
+
+export async function updateUserSession(userId: string, data: Partial<UserSession>): Promise<UserSession> {
+  const updateData = { ...data, updated_at: new Date().toISOString() };
+  
+  if (supabase) {
+    const { data: existing } = await supabase.from('user_sessions').select('*').eq('user_id', userId).single();
+    if (existing) {
+       const { data: updated, error } = await supabase.from('user_sessions').update(updateData).eq('user_id', userId).select().single();
+       if (!error && updated) return updated;
+    } else {
+       const { data: inserted, error } = await supabase.from('user_sessions').insert([{ user_id: userId, ...updateData }]).select().single();
+       if (!error && inserted) return inserted;
+    }
+  }
+
+  let session = memoryUserSessions.find(s => s.user_id === userId);
+  if (!session) {
+    session = { user_id: userId, ...data };
+    memoryUserSessions.push(session);
+  } else {
+    Object.assign(session, data);
+  }
+  return session;
+}
+

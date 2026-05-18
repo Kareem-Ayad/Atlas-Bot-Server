@@ -11,8 +11,7 @@ import { Textarea } from './components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 
-function Sidebar() {
-// ... same sidebar
+function Sidebar({ activeRepo, activeBranch }: { activeRepo: string, activeBranch: string }) {
   const location = useLocation();
   const navItems = [
     { name: 'Dashboard', icon: Activity, path: '/' },
@@ -30,6 +29,27 @@ function Sidebar() {
           <h1 className="font-semibold text-lg leading-tight">Atlas <span className="text-muted-foreground font-normal">/ Core</span></h1>
         </div>
       </div>
+
+      {activeRepo && (
+         <div className="mb-6 p-3 bg-secondary/20 rounded-lg border border-border/40">
+            <h4 className="text-[10px] uppercase font-bold text-muted-foreground mb-2 flex items-center tracking-wider">
+              <Layers size={10} className="mr-1.5" /> Active Context
+            </h4>
+            <div className="space-y-2">
+               <div className="text-xs font-semibold truncate flex items-center" title={activeRepo}>
+                  <GitPullRequest size={12} className="mr-2 text-primary shrink-0" />
+                  <span className="truncate">{activeRepo.split('/')[1] || activeRepo}</span>
+                  <span className="ml-1 text-[10px] text-muted-foreground font-normal">({activeRepo.split('/')[0]})</span>
+               </div>
+               <div className="flex items-center pl-5">
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-mono bg-background/50">
+                    {activeBranch || "main"}
+                  </Badge>
+               </div>
+            </div>
+         </div>
+       )}
+
       <div className="mb-6 flex-1 overflow-y-auto w-full">
         <h3 className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-3">Navigation</h3>
         <div className="space-y-1">
@@ -39,6 +59,7 @@ function Sidebar() {
               variant={location.pathname === item.path ? "secondary" : "ghost"}
               className="w-full justify-start h-8 text-xs font-medium"
               render={<Link to={item.path} />}
+              nativeButton={false}
             >
               <item.icon className="mr-2 h-3.5 w-3.5" />
               {item.name}
@@ -56,7 +77,7 @@ function Sidebar() {
   );
 }
 
-function DashboardHome() {
+function DashboardHome({ activeRepo, activeBranch }: any) {
   const [tasks, setTasks] = useState<any[]>([]);
 
   useEffect(() => {
@@ -74,10 +95,40 @@ function DashboardHome() {
       animate={{ opacity: 1, y: 0 }}
       className="p-8 space-y-8"
     >
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight mb-2">Overview</h2>
-        <p className="text-muted-foreground text-lg">System analytics and active pipeline status.</p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight mb-2">Overview</h2>
+          <p className="text-muted-foreground text-lg">System analytics and active pipeline status.</p>
+        </div>
+        {!activeRepo && (
+          <Button render={<Link to="/tasks" />} nativeButton={false}>
+            <GitPullRequest className="mr-2 h-4 w-4" />
+            Select Repository
+          </Button>
+        )}
       </div>
+
+      {activeRepo && (
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Layers className="text-primary" size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-primary uppercase tracking-wider">Active Context</p>
+                <h3 className="text-lg font-bold flex items-center">
+                  {activeRepo} 
+                  <Badge variant="outline" className="ml-3 font-mono text-[10px] bg-background">
+                    {activeBranch || 'main'}
+                  </Badge>
+                </h3>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" render={<Link to="/tasks" />} nativeButton={false}>Change</Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
@@ -110,7 +161,7 @@ function DashboardHome() {
                 </div>
               </div>
               <div className="flex space-x-2">
-                <Button variant="outline" render={<Link to="/tasks" />}>View More</Button>
+                <Button variant="outline" render={<Link to="/tasks" />} nativeButton={false}>View More</Button>
               </div>
             </div>
           </Card>
@@ -153,14 +204,18 @@ function ModelsRegistry() {
                   <th className="p-4 font-medium">Model ID</th>
                   <th className="p-4 font-medium">Provider</th>
                   <th className="p-4 font-medium">Category Usage</th>
-                  <th className="p-4 font-medium">Cost Indicator</th>
+                  <th className="p-4 font-medium">Status / Cost</th>
                   <th className="p-4 font-medium">Default</th>
                 </tr>
               </thead>
               <tbody>
                 {models.map((m, i) => (
                   <tr key={i} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="p-4 font-mono text-primary">{m.id}</td>
+                    <td className="p-4 font-mono text-primary flex items-center gap-2">
+                       {m.id}
+                       {m.is_available === false && <Badge variant="destructive" className="text-[10px]">UNAVAILABLE</Badge>}
+                       {m.is_available === true && <Badge variant="outline" className="text-[10px] text-green-500 border-green-500/20">READY</Badge>}
+                    </td>
                     <td className="p-4">{m.provider}</td>
                     <td className="p-4"><Badge variant="outline">{m.category}</Badge></td>
                     <td className="p-4">{m.cost_indicator}</td>
@@ -179,15 +234,13 @@ function ModelsRegistry() {
   );
 }
 
-function TasksAndPatches() {
+function TasksAndPatches({ activeRepo, setActiveRepo, activeBranch, setActiveBranch }: any) {
   const [tasks, setTasks] = useState<any[]>([]);
   const [models, setModels] = useState<any[]>([]);
   
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [modelId, setModelId] = useState("");
-  const [repository, setRepository] = useState("");
-  const [branch, setBranch] = useState("");
   
   const [repoResults, setRepoResults] = useState<any[]>([]);
   const [branchResults, setBranchResults] = useState<any[]>([]);
@@ -195,6 +248,25 @@ function TasksAndPatches() {
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   
   const [open, setOpen] = useState(false);
+
+  // Sync session to backend when changed in UI
+  const handleRepoChange = (val: string) => {
+    setActiveRepo(val);
+    fetch('/api/github/session', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ userId: 'web-user', selected_repo: val, selected_branch: "" })
+    });
+  };
+
+  const handleBranchChange = (val: string) => {
+    setActiveBranch(val);
+    fetch('/api/github/session', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ userId: 'web-user', selected_branch: val })
+    });
+  };
 
   const fetchTasks = () => {
     fetch('/api/tasks')
@@ -238,22 +310,23 @@ function TasksAndPatches() {
 
   // Fetch branches when repository changes
   useEffect(() => {
-    if (repository) {
-      setBranch("");
+    if (activeRepo) {
       setBranchResults([]);
       setIsLoadingBranches(true);
       
-      const [owner, repo] = repository.split('/');
+      const [owner, repo] = activeRepo.split('/');
       if (owner && repo) {
         fetch(`/api/github/repos/${owner}/${repo}/branches`)
           .then(res => res.json())
           .then(data => {
             if (Array.isArray(data)) {
               setBranchResults(data);
-              // Find default or main branch
-              const defaultBranch = data.find(b => b.name === 'main' || b.name === 'master');
-              if (defaultBranch) setBranch(defaultBranch.name);
-              else if (data.length > 0) setBranch(data[0].name);
+              // Find default or main branch if none selected
+              if (!activeBranch) {
+                const defaultBranch = data.find(b => b.name === 'main' || b.name === 'master');
+                if (defaultBranch) handleBranchChange(defaultBranch.name);
+                else if (data.length > 0) handleBranchChange(data[0].name);
+              }
             }
           })
           .catch(console.error)
@@ -263,24 +336,21 @@ function TasksAndPatches() {
       }
     } else {
       setBranchResults([]);
-      setBranch("");
     }
-  }, [repository]);
+  }, [activeRepo]);
 
   const handleLaunch = async () => {
-    if (!title || !description || !repository || !branch) return;
+    if (!title || !description || !activeRepo || !activeBranch) return;
     
     await fetch('/api/tasks/execute', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description, modelId, repository, branch })
+      body: JSON.stringify({ title, description, modelId, repository: activeRepo, branch: activeBranch })
     });
     
     setOpen(false);
     setTitle("");
     setDescription("");
-    setRepository("");
-    setBranch("");
     fetchTasks();
   };
 
@@ -318,14 +388,17 @@ function TasksAndPatches() {
                   Target Repository
                   {isLoadingRepos && <span className="text-[10px] text-muted-foreground flex items-center"><div className="mr-1 w-2 h-2 rounded-full border border-primary border-t-transparent animate-spin"></div> Loading...</span>}
                 </label>
-                <Select value={repository} onValueChange={setRepository} disabled={isLoadingRepos || repoResults.length === 0}>
-                  <SelectTrigger className="w-full">
+                <Select value={activeRepo} onValueChange={handleRepoChange} disabled={isLoadingRepos || repoResults.length === 0}>
+                  <SelectTrigger className="w-full h-12">
                     <SelectValue placeholder={isLoadingRepos ? "Fetching repositories..." : (repoResults.length === 0 ? "No repositories found" : "Select repository")} />
                   </SelectTrigger>
                   <SelectContent>
                     {repoResults.map((repo) => (
                       <SelectItem key={repo.id || repo.full_name} value={repo.full_name}>
-                        {repo.full_name} {repo.private && "🔒"}
+                        <div className="flex flex-col items-start py-1">
+                          <span className="font-semibold text-sm">{repo.full_name} {repo.private && "🔒"}</span>
+                          <span className="text-[10px] text-muted-foreground">Default: {repo.default_branch} • {repo.visibility}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -336,9 +409,9 @@ function TasksAndPatches() {
                   Target Branch
                   {isLoadingBranches && <span className="text-[10px] text-muted-foreground flex items-center"><div className="mr-1 w-2 h-2 rounded-full border border-primary border-t-transparent animate-spin"></div> Loading...</span>}
                 </label>
-                <Select value={branch} onValueChange={setBranch} disabled={!repository || isLoadingBranches || branchResults.length === 0}>
+                <Select value={activeBranch} onValueChange={handleBranchChange} disabled={!activeRepo || isLoadingBranches || branchResults.length === 0}>
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder={!repository ? "Select a repository first" : (isLoadingBranches ? "Fetching branches..." : "Select branch")} />
+                    <SelectValue placeholder={!activeRepo ? "Select a repository first" : (isLoadingBranches ? "Fetching branches..." : "Select branch")} />
                   </SelectTrigger>
                   <SelectContent>
                     {branchResults.map((b) => (
@@ -364,7 +437,7 @@ function TasksAndPatches() {
               </div>
             </div>
             <DialogFooter>
-              <Button onClick={handleLaunch} disabled={!title || !description || !repository || !branch}><Play className="w-4 h-4 mr-2" /> Launch Pipeline</Button>
+              <Button onClick={handleLaunch} disabled={!title || !description || !activeRepo || !activeBranch}><Play className="w-4 h-4 mr-2" /> Launch Pipeline</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -418,8 +491,19 @@ export default function App() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [sessionStartTime] = useState(Date.now());
   const [sessionDuration, setSessionDuration] = useState("");
+  const [activeRepo, setActiveRepo] = useState("");
+  const [activeBranch, setActiveBranch] = useState("");
 
   useEffect(() => {
+    // Fetch session
+    fetch('/api/github/session?userId=web-user')
+      .then(res => res.json())
+      .then(data => {
+        if (data.selected_repo) setActiveRepo(data.selected_repo);
+        if (data.selected_branch) setActiveBranch(data.selected_branch);
+      })
+      .catch(console.error);
+
     // Fetch models and pick the default
     fetch('/api/models')
       .then(r => r.json())
@@ -472,12 +556,12 @@ export default function App() {
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          <Sidebar />
+          <Sidebar activeRepo={activeRepo} activeBranch={activeBranch} />
           <main className="flex-1 overflow-y-auto bg-background">
             <Routes>
-              <Route path="/" element={<DashboardHome />} />
+              <Route path="/" element={<DashboardHome activeRepo={activeRepo} activeBranch={activeBranch} />} />
               <Route path="/models" element={<ModelsRegistry />} />
-              <Route path="/tasks" element={<TasksAndPatches />} />
+              <Route path="/tasks" element={<TasksAndPatches activeRepo={activeRepo} setActiveRepo={setActiveRepo} activeBranch={activeBranch} setActiveBranch={setActiveBranch} />} />
               <Route path="*" element={<div className="p-8 text-muted-foreground">WIP / Coming soon. Check Dashboard.</div>} />
             </Routes>
           </main>

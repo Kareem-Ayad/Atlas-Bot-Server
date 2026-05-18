@@ -1,11 +1,20 @@
 import { Telegraf } from "telegraf";
 import { handleTask } from "./handlers/task";
 import { fetchUserRepositories, fetchRepositoryBranches, validateBranch } from "./github";
+import { getUserSession, updateUserSession } from "./db";
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
+let botInstance: Telegraf | null = null;
 
-// In-Memory store for Telegram user sessions
-export const userSessions: Record<number, { repo?: string, branch?: string }> = {};
+export async function sendMessage(chatId: string | number, text: string) {
+  if (botInstance) {
+    try {
+      await botInstance.telegram.sendMessage(chatId, text);
+    } catch (e) {
+      console.error("Failed to send telegram message", e);
+    }
+  }
+}
 
 export async function startBot() {
   if (!botToken) {
@@ -14,6 +23,7 @@ export async function startBot() {
   }
 
   const bot = new Telegraf(botToken);
+  botInstance = bot;
 
   // SYSTEM
   bot.start((ctx) => {
@@ -111,14 +121,15 @@ VALIDATION COMMANDS
   });
 
   bot.command("branches", async (ctx) => {
-    const session = userSessions[ctx.from.id];
-    if (!session || !session.repo) return ctx.reply("No repository selected. Use /repo [name] first.");
+    const userId = ctx.from.id.toString();
+    const session = await getUserSession(userId);
+    if (!session || !session.selected_repo) return ctx.reply("No repository selected. Use /repo [name] first.");
     try {
       const msg = await ctx.reply("Fetching branches...");
-      const [owner, repo] = session.repo.split('/');
+      const [owner, repo] = session.selected_repo.split('/');
       const branches = await fetchRepositoryBranches(owner, repo);
       const text = branches.slice(0, 15).map((b: any) => `- ${b.name}`).join("\n");
-      await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, undefined, `Branches for ${session.repo} (Top 15):\n${text}`);
+      await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, undefined, `Branches for ${session.selected_repo} (Top 15):\n${text}`);
     } catch(e) {
       ctx.reply("Failed to fetch branches.");
     }
@@ -126,29 +137,31 @@ VALIDATION COMMANDS
 
   bot.command("repo", async (ctx) => {
     const args = ctx.message.text.split(" ").slice(1).join(" ");
+    const userId = ctx.from.id.toString();
     if (!args) {
-       const session = userSessions[ctx.from.id] || {};
-       return ctx.reply(`Current repository: ${session.repo || "None"}`);
+       const session = await getUserSession(userId);
+       return ctx.reply(`Current repository: ${session?.selected_repo || "None"}`);
     }
     const [owner, repo] = args.split('/');
     if(!owner || !repo) return ctx.reply("Format must be owner/repo");
-    userSessions[ctx.from.id] = { ...userSessions[ctx.from.id], repo: args, branch: undefined };
+    await updateUserSession(userId, { selected_repo: args, selected_branch: undefined });
     ctx.reply(`Repository selected: ${args}. Default branch cleared. Use /branches to see options and /branch [name] to select one.`);
   });
 
   bot.command("branch", async (ctx) => {
     const args = ctx.message.text.split(" ").slice(1).join(" ");
+    const userId = ctx.from.id.toString();
     if (!args) {
-       const session = userSessions[ctx.from.id] || {};
-       return ctx.reply(`Current branch: ${session.branch || "None"}`);
+       const session = await getUserSession(userId);
+       return ctx.reply(`Current branch: ${session?.selected_branch || "None"}`);
     }
-    const session = userSessions[ctx.from.id];
-    if (!session || !session.repo) return ctx.reply("No repository selected. Use /repo [name] first.");
+    const session = await getUserSession(userId);
+    if (!session || !session.selected_repo) return ctx.reply("No repository selected. Use /repo [name] first.");
     try {
-      const [owner, repo] = session.repo.split('/');
+      const [owner, repo] = session.selected_repo.split('/');
       const isValid = await validateBranch(owner, repo, args);
-      if(!isValid) return ctx.reply(`Branch ${args} does not exist in ${session.repo}.`);
-      session.branch = args;
+      if(!isValid) return ctx.reply(`Branch ${args} does not exist in ${session.selected_repo}.`);
+      await updateUserSession(userId, { selected_branch: args });
       ctx.reply(`Branch selected: ${args}`);
     } catch(e) {
       ctx.reply("Failed to validate branch.");
