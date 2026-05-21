@@ -1,59 +1,58 @@
 import { getModels, Model as DbModel } from "./db";
 
-export interface OpenRouterModel {
+export interface OllamaModel {
   id: string;
   name: string;
-  endpoints?: string[];
-  pricing?: any;
-  context_length?: number;
 }
 
-let openRouterModelCache: OpenRouterModel[] = [];
+let ollamaModelCache: OllamaModel[] = [];
 let lastFetchTime = 0;
 
 export const FALLBACK_CHAIN = [
-  "qwen/qwen-2.5-coder-32b-instruct:free",
-  "meta-llama/llama-3-8b-instruct:free",
-  "deepseek/deepseek-chat:free",
-  "google/gemma-2-9b-it:free",
-  "mistralai/mistral-7b-instruct:free",
-  "qwen/qwen-2-7b-instruct:free"
+  "qwen2.5-coder",
+  "llama3.2",
+  "llama3.1",
+  "mistral",
+  "gemma2",
+  "deepseek-coder:1.3b"
 ];
 
-export async function fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
+export async function fetchOllamaModels(): Promise<OllamaModel[]> {
   const now = Date.now();
   // Cache for 1 hour
-  if (openRouterModelCache.length > 0 && now - lastFetchTime < 60 * 60 * 1000) {
-    return openRouterModelCache;
+  if (ollamaModelCache.length > 0 && now - lastFetchTime < 60 * 60 * 1000) {
+    return ollamaModelCache;
   }
 
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/models");
-    if (!res.ok) throw new Error("Failed to fetch OpenRouter models");
+    const baseUrl = process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1";
+    // Using the OpenAI compatibility endpoint to get list of models: /v1/models
+    const res = await fetch(`${baseUrl}/models`);
+    if (!res.ok) throw new Error("Failed to fetch Ollama models");
     
     const data = await res.json();
     if (data && Array.isArray(data.data)) {
-      openRouterModelCache = data.data;
+      ollamaModelCache = data.data;
       lastFetchTime = now;
-      return openRouterModelCache;
+      return ollamaModelCache;
     }
   } catch (error) {
-    console.error("OpenRouter fetch error:", error);
+    console.error("Ollama fetch error:", error);
   }
   
-  return openRouterModelCache;
+  return ollamaModelCache;
 }
 
 export async function getEnrichedModels(): Promise<DbModel[]> {
-  const [dbModels, orModels] = await Promise.all([
+  const [dbModels, oModels] = await Promise.all([
     getModels(),
-    fetchOpenRouterModels()
+    fetchOllamaModels()
   ]);
 
-  // If we couldn't fetch from OpenRouter, just return DB models
-  if (orModels.length === 0) return dbModels;
+  // If we couldn't fetch from Ollama, just return DB models
+  if (oModels.length === 0) return dbModels;
 
-  const validModelIds = new Set(orModels.map(m => m.id));
+  const validModelIds = new Set(oModels.map(m => m.id));
 
   // Merge and update availability
   const enrichedModels = dbModels.map(model => ({
@@ -65,13 +64,13 @@ export async function getEnrichedModels(): Promise<DbModel[]> {
   for (const fallback of FALLBACK_CHAIN) {
      if (!enrichedModels.find(m => m.id === fallback)) {
         if (validModelIds.has(fallback)) {
-           const orm = orModels.find(m => m.id === fallback);
+           const orm = oModels.find(m => m.id === fallback);
            enrichedModels.push({
              id: fallback,
              name: orm?.name || fallback,
-             provider: fallback.split('/')[0] || 'Unknown',
+             provider: 'Ollama',
              category: 'Auto-Fallback',
-             cost_indicator: fallback.includes('free') ? 'Free' : 'Pro',
+             cost_indicator: 'Free',
              is_default: false,
              is_available: true
            });
@@ -83,7 +82,7 @@ export async function getEnrichedModels(): Promise<DbModel[]> {
 }
 
 export async function getValidModel(preferredModelId: string): Promise<string> {
-  const models = await fetchOpenRouterModels();
+  const models = await fetchOllamaModels();
   
   // Check if preferred model exists and is available
   if (models.length > 0) {
@@ -93,21 +92,16 @@ export async function getValidModel(preferredModelId: string): Promise<string> {
     }
   }
 
-  // If we couldn't fetch models, we just try the preferred one anyway,
-  // or we fallback using our chain.
   for (const fallback of FALLBACK_CHAIN) {
     if (fallback === preferredModelId) continue;
     
-    // Check if the fallback is in OpenRouter's current list (if we have it)
     if (models.length > 0) {
       const isAvailable = models.some(m => m.id === fallback);
       if (isAvailable) return fallback;
     } else {
-      // If no cache, just return the first fallback
       return fallback;
     }
   }
 
-  // Absolute fallback
-  return "mistralai/mistral-7b-instruct:free";
+  return "llama3.2";
 }

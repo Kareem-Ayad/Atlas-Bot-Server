@@ -26,7 +26,9 @@ export async function fetchUserRepositories() {
   const octokit = getOctokit();
   try {
     // Fetch repositories the authenticated user has access to
-    const { data } = await octokit.rest.repos.listForAuthenticatedUser({
+    const data = await octokit.paginate(octokit.rest.repos.listForAuthenticatedUser, {
+      visibility: "all",
+      affiliation: "owner,collaborator,organization_member",
       sort: "updated",
       per_page: 100,
     });

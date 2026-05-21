@@ -1,18 +1,13 @@
 import { createOpenAI } from "@ai-sdk/openai";
 
-const openrouter = createOpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY,
-  headers: {
-    "HTTP-Referer": process.env.APP_URL || "http://localhost:3000",
-    "X-Title": "Atlas AI Engineer",
-  },
+const ollama = createOpenAI({
+  baseURL: process.env.OLLAMA_BASE_URL || "http://localhost:11434/v1",
+  apiKey: process.env.OLLAMA_API_KEY || "ollama",
 });
 
 export function getModel(modelId: string) {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error("OPENROUTER_API_KEY is not set.");
+  if (!process.env.OLLAMA_API_KEY) {
+    console.warn("OLLAMA_API_KEY is not set, defaulting to 'ollama' key.");
   }
-  return openrouter(modelId);
+  return ollama(modelId);
 }
-

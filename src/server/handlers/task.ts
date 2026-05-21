@@ -30,7 +30,7 @@ export async function handleTask(ctx: Context) {
 
   try {
     const task = await createTask("Telegram Task", args, session.selected_repo, session.selected_branch, chatId);
-    const modelId = "meta-llama/llama-3-8b-instruct:free";
+    const modelId = "llama3.2";
 
     // Start background execution correctly via Queue
     await taskQueue.add({ taskId: task.id, modelId });

@@ -40,12 +40,12 @@ CREATE TABLE models (
     is_default BOOLEAN DEFAULT false
 );
 
--- Insert OpenRouter Free Models
+-- Insert Ollama default models
 INSERT INTO models (id, name, provider, category, cost_indicator, is_default) VALUES
-('meta-llama/llama-3-8b-instruct:free', 'Llama 3 8B Instruct', 'Meta', 'Coding', 'Free', true),
-('mistralai/mistral-7b-instruct:free', 'Mistral 7B Instruct', 'Mistral', 'Reasoning', 'Free', false),
-('google/gemma-7b-it:free', 'Gemma 7B IT', 'Google', 'Fast', 'Free', false),
-('qwen/qwen-2-7b-instruct:free', 'Qwen 2 7B', 'Qwen', 'Coding', 'Free', false);
+('llama3.2', 'Llama 3.2', 'Meta', 'General', 'Free', true),
+('qwen2.5-coder', 'Qwen 2.5 Coder', 'Qwen', 'Coding', 'Free', false),
+('mistral', 'Mistral', 'Mistral', 'Reasoning', 'Free', false),
+('deepseek-coder:1.3b', 'DeepSeek Coder 1.3B', 'DeepSeek', 'Coding', 'Free', false);
 
 -- User Sessions Table (Persistent storage for user preferences)
 CREATE TABLE user_sessions (

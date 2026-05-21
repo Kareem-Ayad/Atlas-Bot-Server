@@ -15,7 +15,7 @@ async function notifyProgress(task: Task, text: string) {
 // Here we use an async fire-and-forget pipeline to support concurrent tasks in the background.
 
 export async function executePipeline(task: Task, chosenModelId: string) {
-  let pipelineModelId = await getValidModel(chosenModelId || "meta-llama/llama-3-8b-instruct:free");
+  let pipelineModelId = await getValidModel(chosenModelId || "llama3.2");
 
   if (pipelineModelId !== chosenModelId && chosenModelId) {
      await notifyProgress(task, `Primary model unavailable.\nSwitched to ${pipelineModelId}.`);

@@ -48,10 +48,10 @@ const memoryDb = {
   tasks: [] as Task[],
   taskLogs: [] as TaskLog[],
   models: [
-    { id: 'meta-llama/llama-3-8b-instruct:free', name: 'Llama 3 8B Instruct', provider: 'Meta', category: 'Coding', cost_indicator: 'Free', is_default: true },
-    { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B Instruct', provider: 'Mistral', category: 'Reasoning', cost_indicator: 'Free', is_default: false },
-    { id: 'google/gemma-7b-it:free', name: 'Gemma 7B IT', provider: 'Google', category: 'Fast', cost_indicator: 'Free', is_default: false },
-    { id: 'qwen/qwen-2-7b-instruct:free', name: 'Qwen 2 7B', provider: 'Qwen', category: 'Coding', cost_indicator: 'Free', is_default: false },
+    { id: 'llama3.2', name: 'Llama 3.2', provider: 'Meta', category: 'General', cost_indicator: 'Free', is_default: true },
+    { id: 'qwen2.5-coder', name: 'Qwen 2.5 Coder', provider: 'Qwen', category: 'Coding', cost_indicator: 'Free', is_default: false },
+    { id: 'mistral', name: 'Mistral', provider: 'Mistral', category: 'Reasoning', cost_indicator: 'Free', is_default: false },
+    { id: 'deepseek-coder:1.3b', name: 'DeepSeek Coder 1.3B', provider: 'DeepSeek', category: 'Coding', cost_indicator: 'Free', is_default: false },
   ] as Model[]
 };
 

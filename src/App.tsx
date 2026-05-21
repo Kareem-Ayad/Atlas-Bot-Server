@@ -193,7 +193,7 @@ function ModelsRegistry() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Configured Providers (OpenRouter Free Tier)</CardTitle>
+          <CardTitle>Configured Providers (Ollama)</CardTitle>
           <CardDescription>Available endpoints for generation.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -463,7 +463,7 @@ function TasksAndPatches({ activeRepo, setActiveRepo, activeBranch, setActiveBra
                   <p className="text-sm text-muted-foreground flex items-center flex-wrap gap-3 mt-1">
                     {task.repository && <Badge variant="outline" className="font-mono text-[10px]">{task.repository}</Badge>}
                     {task.branch && <Badge variant="outline" className="font-mono text-[10px]"><GitPullRequest size={10} className="inline mr-1" />{task.branch}</Badge>}
-                    <span className="flex items-center gap-1"><Bot size={14}/> {task.model_used || "Assigned by OpenRouter"}</span>
+                    <span className="flex items-center gap-1"><Bot size={14}/> {task.model_used || "Assigned by Ollama"}</span>
                     <span>•</span>
                     <span>Created {formatDistanceToNow(new Date(task.created_at))} ago</span>
                   </p>

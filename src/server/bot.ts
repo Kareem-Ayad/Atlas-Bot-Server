@@ -113,7 +113,7 @@ VALIDATION COMMANDS
     try {
       const msg = await ctx.reply("Fetching repositories...");
       const repos = await fetchUserRepositories();
-      const text = repos.slice(0, 15).map((r: any) => `- ${r.full_name}`).join("\n");
+      const text = repos.slice(0, 15).map((r: any) => `- ${r.full_name} ${r.private ? "🔒" : ""}`).join("\n");
       await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, undefined, `Repositories (Top 15):\n${text}`);
     } catch(e) {
       ctx.reply("Failed to fetch repositories. Ensure GITHUB_TOKEN is set.");
