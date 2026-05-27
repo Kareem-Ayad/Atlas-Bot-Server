@@ -96,6 +96,24 @@ VALIDATION COMMANDS
   bot.command("cancel", (ctx) => ctx.reply("Task cancelled."));
   bot.command("retry", (ctx) => ctx.reply("Retrying failure."));
 
+  bot.command("ask", async (ctx) => {
+    const text = ctx.message.text.replace("/ask", "").trim();
+    if (!text) return ctx.reply("Provide a prompt after /ask");
+
+    try {
+      const msg = await ctx.reply("Thinking...");
+      const { generateText } = await import("ai");
+      const { getModel } = await import("./ai");
+      const { text: response } = await generateText({
+        model: getModel("gemini-2.5-pro"),
+        prompt: text,
+      });
+      await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, undefined, response);
+    } catch (e: any) {
+      ctx.reply(`Error: ${e.message}`);
+    }
+  });
+
   // CODE COMMANDS
   bot.command("patch", (ctx) => ctx.reply("Generating patch diffs..."));
   bot.command("review", (ctx) => ctx.reply("Reviewing architecture, bugs, and security."));

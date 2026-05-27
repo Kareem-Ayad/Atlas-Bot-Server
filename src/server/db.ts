@@ -31,6 +31,9 @@ export interface TaskLog {
   agent_role: AgentRole;
   model_used: string;
   content: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  cost_usd?: number;
   created_at: string;
 }
 
@@ -115,13 +118,16 @@ export async function getTask(id: string): Promise<Task | null> {
   return memoryDb.tasks.find(t => t.id === id) || null;
 }
 
-export async function addTaskLog(task_id: string, agent_role: AgentRole, model_used: string, content: string): Promise<TaskLog> {
+export async function addTaskLog(task_id: string, agent_role: AgentRole, model_used: string, content: string, usage?: { inputTokens: number, outputTokens: number, costUsd?: number }): Promise<TaskLog> {
   const log: TaskLog = {
     id: uuidv4(),
     task_id,
     agent_role,
     model_used,
     content,
+    input_tokens: usage?.inputTokens,
+    output_tokens: usage?.outputTokens,
+    cost_usd: usage?.costUsd,
     created_at: new Date().toISOString()
   };
 

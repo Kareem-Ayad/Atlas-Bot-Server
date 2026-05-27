@@ -84,3 +84,41 @@ export async function validateBranch(owner: string, repo: string, branch: string
     return false;
   }
 }
+
+export async function fetchRepoContext(owner: string, repo: string, branch: string) {
+  const octokit = getOctokit();
+  let readme = "";
+  let packageJson = "";
+  let tree = "";
+
+  try {
+    const { data: readmeData } = await octokit.rest.repos.getReadme({ owner, repo, ref: branch });
+    if ("content" in readmeData) readme = Buffer.from(readmeData.content, "base64").toString();
+  } catch {}
+
+  try {
+    const { data: pkgData } = await octokit.rest.repos.getContent({ owner, repo, path: "package.json", ref: branch });
+    if (!Array.isArray(pkgData) && pkgData.type === 'file' && "content" in pkgData) {
+      packageJson = Buffer.from(pkgData.content, "base64").toString();
+    }
+  } catch {}
+
+  try {
+    const { data: branchData } = await octokit.rest.repos.getBranch({ owner, repo, branch });
+    const { data: treeData } = await octokit.rest.git.getTree({ owner, repo, tree_sha: branchData.commit.sha, recursive: "true" });
+    tree = treeData.tree.filter((t: any) => t.type === 'blob').map((t: any) => t.path).slice(0, 1000).join("\n");
+  } catch {}
+
+  return `
+Repository: ${owner}/${repo}
+
+README:
+${readme.slice(0, 5000)}
+
+package.json:
+${packageJson.slice(0, 5000)}
+
+Directory tree:
+${tree}
+`;
+}

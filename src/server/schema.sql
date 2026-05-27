@@ -27,6 +27,9 @@ CREATE TABLE task_logs (
     agent_role agent_role NOT NULL,
     model_used TEXT NOT NULL,
     content TEXT NOT NULL,
+    input_tokens INT DEFAULT 0,
+    output_tokens INT DEFAULT 0,
+    cost_usd NUMERIC DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
